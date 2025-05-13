@@ -30,6 +30,16 @@ We can map these choices to **arguments** in a custom model-fitting function:
 - `impute`: TRUE or FALSE
 - `remove_outliers`: TRUE or FALSE
 
+```{r, warning=FALSE, echo=TRUE}
+#| label: library
+
+library(data.table)
+library(dplyr)
+library(tidyverse)
+library(purrr)
+```
+
+
 A function that implements the analysis and allows for variation in these 
 choices:
 
@@ -61,7 +71,35 @@ a threshold on the number of SDs away from the mean used to define outliers.
 
 ```{r}
 #| label: exercise-1
-
+remove_outliers <- function(data, ..., sd_thresh = 3) {
+  #Convert to data.table
+  dt <- as.data.table(data)
+  
+  #Capture column names
+  cols <- as.character(substitute(list(...)))[-1]
+  
+  #Check for columns which are non-numeric
+  non_numeric <- cols[!sapply(dt[, ..cols], is.numeric)]
+  
+  if (length(non_numeric) > 0) {
+    warning("The following columns are not numeric and will be skipped: ",
+            paste(non_numeric, collapse = ", "))
+  }
+  
+  #Filter only numeric columns
+  numeric_cols <- setdiff(cols, non_numeric)
+  
+  #Create a mask for rows to keep
+  mask <- rep(TRUE, nrow(dt))
+  
+  for (col in numeric_cols) {
+    z <- as.vector(scale(dt[[col]])) #Get z-score
+    mask <- mask & abs(z) <= sd_thresh #Filter out outliers
+  }
+  
+  #Apply mask and return filtered dataset
+  return(dt[mask, , drop = FALSE])
+}
 ```
 
 ## Testing Your Function! 
@@ -100,7 +138,27 @@ variables to impute values for, and a function to use when imputing.
 ```{r}
 #| label: exercise-2
 
-
+impute_missing <- function(data, ..., impute_fun = mean) {
+  #Capture column names
+  cols <- as.character(substitute(list(...)))[-1]
+  
+  #Check for columns which are non-numeric
+  non_numeric <- cols[!sapply(data[, cols, drop = FALSE], is.numeric)]
+  
+  if (length(non_numeric) > 0) {
+    warning("The following columns are not numeric and will be skipped: ",
+            paste(non_numeric, collapse = ", "))
+  }
+  
+  #Filter only numeric columns
+  numeric_cols <- setdiff(cols, non_numeric)
+  
+  data |> 
+    mutate(across(
+      .cols = all_of(numeric_cols), 
+      .fns = ~ replace_na(.x, impute_fun(.x, na.rm = TRUE)) #Impute using the specified function
+    ))
+}
 ```
 
 ## Testing Your Function! 
@@ -141,7 +199,23 @@ model is fit.
 
 ```{r}
 #| label: exercise-3
-
+fit_model <- function(df, impute_missing = FALSE, remove_outliers = FALSE, mod_formula, ...) {
+    #Check if need imputation
+    if (impute_missing) {
+        df <- impute_missing_dt(df, ...)  #Call my imputation function
+    }
+    
+    #Check if need outlier removal
+    if (remove_outliers) {
+        df <- remove_outliers(df, ...)  # Call my outlier removal function
+    }
+    
+    # Fit the linear regression model
+    model <- lm(mod_formula, data = df)
+    
+    # Return the model
+    return(model)
+}
 
 ```
 
@@ -203,7 +277,16 @@ combinations for our analyses.
 
 ```{r}
 #| label: exercise-4
-
+df_arg_combos <- crossing(
+  impute = c(TRUE, FALSE),
+  remove_outliers = c(TRUE, FALSE),
+  mod = list(
+    price ~ carat, #No additional variables
+    price ~ carat + cut, #Adjusting for cut
+    price ~ carat + cut + clarity, #Adjusting for cut and clarity
+    price ~ carat + cut + clarity + color #Adjusting for cut, clarity, and color
+  )
+)
 ```
 
 ## Iterating Over the Parameters
@@ -216,6 +299,13 @@ every combination of arguments from `diamonds.
 ```{r}
 #| label: exercise-5
 
+#Apply fit_model to all combinations of arguments using pmap
+results <- pmap(df_arg_combos, function(impute, remove_outliers, mod) {
+  # Call the fit_model function for each combination of arguments
+  fit_model(diamonds, impute, remove_outliers, mod)
+})
 
+#Fitted models for each combination of arguments
+results
 ```
 
