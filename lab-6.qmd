@@ -32,7 +32,7 @@ We can map these choices to **arguments** in a custom model-fitting function:
 - `impute`: TRUE or FALSE
 - `remove_outliers`: TRUE or FALSE
 
-```{r, warning=FALSE, echo=TRUE}
+```{r, message=FALSE, echo=FALSE}
 #| label: library
 
 library(data.table)
@@ -170,17 +170,17 @@ impute_missing_dt <- function(data, ..., impute_fun = mean) { #I don't remember 
 #| error: true
 
 ## Testing how your function handles multiple input variables
-impute_missing(nycflights13::flights, 
+impute_missing_dt(nycflights13::flights, 
                arr_delay, 
                dep_delay) 
 
 ## Testing how your function handles an input that isn't numeric
-impute_missing(nycflights13::flights, 
+impute_missing_dt(nycflights13::flights, 
                arr_delay, 
                carrier)
 
 ## Testing how your function handles a non-default impute_fun
-impute_missing(nycflights13::flights, 
+impute_missing_dt(nycflights13::flights, 
                arr_delay, 
                dep_delay, 
                impute_fun = median)
