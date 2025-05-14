@@ -207,13 +207,13 @@ fit_model <- function(df, impute_missing = FALSE, remove_outliers = FALSE, mod_f
     
     #Check if need outlier removal
     if (remove_outliers) {
-        df <- remove_outliers(df, ...)  # Call my outlier removal function
+        df <- remove_outliers(df, ...)  #Call my outlier removal function
     }
     
-    # Fit the linear regression model
+    #Fit the linear regression model
     model <- lm(mod_formula, data = df)
     
-    # Return the model
+    #Return the model
     return(model)
 }
 
@@ -302,7 +302,7 @@ every combination of arguments from `diamonds.
 #Apply fit_model to all combinations of arguments using pmap
 results <- pmap(df_arg_combos, function(impute, remove_outliers, mod) {
   # Call the fit_model function for each combination of arguments
-  fit_model(diamonds, impute, remove_outliers, mod)
+  fit_model(diamonds, impute, remove_outliers, mod, price, carat)
 })
 
 #Fitted models for each combination of arguments
