@@ -1,6 +1,8 @@
 ---
 title: "Lab 6 - Spicy"
 subtitle: "Performing Many Different Versions of an Analysis"
+author: Alisa Krasilnikov
+embed-resources: true
 editor: source
 ---
 
@@ -138,7 +140,7 @@ variables to impute values for, and a function to use when imputing.
 ```{r}
 #| label: exercise-2
 
-impute_missing <- function(data, ..., impute_fun = mean) {
+impute_missing_dt <- function(data, ..., impute_fun = mean) { #I don't remember why I named this impute_missing_dt but I'm worried it's going to cause errors if I change it
   #Capture column names
   cols <- as.character(substitute(list(...)))[-1]
   
