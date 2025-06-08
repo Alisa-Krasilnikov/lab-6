@@ -74,33 +74,32 @@ a threshold on the number of SDs away from the mean used to define outliers.
 ```{r}
 #| label: exercise-1
 remove_outliers <- function(data, ..., sd_thresh = 3) {
-  #Convert to data.table
   dt <- as.data.table(data)
   
   #Capture column names
   cols <- as.character(substitute(list(...)))[-1]
   
-  #Check for columns which are non-numeric
-  non_numeric <- cols[!sapply(dt[, ..cols], is.numeric)]
+  #Check which are numeric
+  is_numeric <- sapply(dt[, ..cols], is.numeric)
+  numeric_cols <- cols[is_numeric]
+  non_numeric <- cols[!is_numeric]
   
   if (length(non_numeric) > 0) {
     warning("The following columns are not numeric and will be skipped: ",
             paste(non_numeric, collapse = ", "))
   }
   
-  #Filter only numeric columns
-  numeric_cols <- setdiff(cols, non_numeric)
-  
-  #Create a mask for rows to keep
-  mask <- rep(TRUE, nrow(dt))
-  
-  for (col in numeric_cols) {
-    z <- as.vector(scale(dt[[col]])) #Get z-score
-    mask <- mask & abs(z) <= sd_thresh #Filter out outliers
+  if (length(numeric_cols) == 0) {
+    return(dt)  #If no numeric columns to filter, just return the data table
   }
   
-  #Apply mask and return filtered dataset
-  return(dt[mask, , drop = FALSE])
+  #Compute z-scores for all numeric columns at once
+  z_scores <- dt[, lapply(.SD, function(col) abs(scale(col))), .SDcols = numeric_cols]
+  
+  #Compute mask: rows where all z-scores are within threshold
+  keep_rows <- rowSums(z_scores > sd_thresh) == 0
+  
+  return(dt[keep_rows])
 }
 ```
 
@@ -140,7 +139,7 @@ variables to impute values for, and a function to use when imputing.
 ```{r}
 #| label: exercise-2
 
-impute_missing_dt <- function(data, ..., impute_fun = mean) { #I don't remember why I named this impute_missing_dt but I'm worried it's going to cause errors if I change it
+impute_missing_dt <- function(data, ..., impute_fun = mean) { 
   #Capture column names
   cols <- as.character(substitute(list(...)))[-1]
   
@@ -280,13 +279,13 @@ combinations for our analyses.
 ```{r}
 #| label: exercise-4
 df_arg_combos <- crossing(
-  impute = c(TRUE, FALSE),
+  impute_missing = c(TRUE, FALSE),
   remove_outliers = c(TRUE, FALSE),
-  mod = list(
+  mod_formula = list(
     price ~ carat, #No additional variables
     price ~ carat + cut, #Adjusting for cut
     price ~ carat + cut + clarity, #Adjusting for cut and clarity
-    price ~ carat + cut + clarity + color #Adjusting for cut, clarity, and color
+    price ~ carat + cut + clarity + color #Adjusting for all variables
   )
 )
 ```
@@ -302,10 +301,7 @@ every combination of arguments from `diamonds.
 #| label: exercise-5
 
 #Apply fit_model to all combinations of arguments using pmap
-results <- pmap(df_arg_combos, function(impute, remove_outliers, mod) {
-  # Call the fit_model function for each combination of arguments
-  fit_model(diamonds, impute, remove_outliers, mod, price, carat)
-})
+results <- pmap(df_arg_combos, fit_model, df = diamonds, price, carat)
 
 #Fitted models for each combination of arguments
 results
